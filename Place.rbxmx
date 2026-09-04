@@ -15,4 +15,9 @@ end)
 ]]></ProtectedString>
 		</Properties>
 	</Item>
+	<Item class="RemoteEvent" referent="2">
+		<Properties>
+			<string name="Name"><![CDATA[]]></string>
+		</Properties>
+	</Item>
 </roblox>
