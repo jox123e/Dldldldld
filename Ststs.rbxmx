@@ -1,40 +1,225 @@
-<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
-	<External>null</External>
-	<External>nil</External>
-	<Item class="Folder" referent="RBX0">
+<roblox version="4">
+	<Meta name="ExplicitAutoJoints">true</Meta>
+	<Item class="ScreenGui" referent="RBX0">
 		<Properties>
-			<string name="Name">PayloadFolder</string>
+			<token name="ScreenInsets">1</token>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name"><![CDATA[_Chat]]></string>
+			<BinaryString name="SerializedOverrides"></BinaryString>
+			<SharedString name="Tags">MTAwMDAwMDAwMDAwMDAwMA==</SharedString>
 		</Properties>
-		<Item class="RemoteEvent" referent="RBX1">
+		<Item class="Frame" referent="RBX1">
 			<Properties>
-				<string name="Name">lll</string>
-			</Properties>
-		</Item>		<Item class="RemoteEvent" referent="RBX2">
-			<Properties>
-				<string name="Name">lll</string>
-			</Properties>
-		</Item>
-		<Item class="Script" referent="RBX3">
-			<Properties>
-				<string name="Name">MiScriptOculto</string>
+				<Color3 name="BackgroundColor3">
+					<R>1</R>
+					<G>1</G>
+					<B>1</B>
+				</Color3>
+				<int name="BorderSizePixel">0</int>
+				<UDim2 name="Size">
+					<XS>1</XS>
+					<XO>0</XO>
+					<YS>1</YS>
+					<YO>0</YO>
+				</UDim2>
 				<BinaryString name="AttributesSerialize"></BinaryString>
-				<ProtectedString name="Source">
-					<![CDATA[
-						print("¡Script inyectado correctamente mediante RBXMX!")
-					]]>
-				</ProtectedString>
+				<bool name="DefinesCapabilities">false</bool>
+				<BinaryString name="SerializedOverrides"></BinaryString>
+				<SharedString name="Tags">MTAwMDAwMDAwMDAwMDAwMA==</SharedString>
 			</Properties>
+			<Item class="TextLabel" referent="RBX2">
+				<Properties>
+					<Font name="FontFace">
+						<Family><url><![CDATA[rbxassetid://12187362578]]></url></Family>
+						<Weight>400</Weight>
+						<Style>Normal</Style>
+					</Font>
+					<string name="Text"><![CDATA[Bye have look for removing the backdoor]]></string>
+					<Color3 name="TextColor3">
+						<R>0</R>
+						<G>0</G>
+						<B>0</B>
+					</Color3>
+					<bool name="TextScaled">true</bool>
+					<bool name="TextWrapped">true</bool>
+					<Color3 name="BackgroundColor3">
+						<R>0.6352941393852234</R>
+						<G>0.6352941393852234</G>
+						<B>0.6352941393852234</B>
+					</Color3>
+					<float name="BackgroundTransparency">1</float>
+					<UDim2 name="Position">
+						<XS>0.09062003344297409</XS>
+						<XO>0</XO>
+						<YS>0.8110119104385376</YS>
+						<YO>0</YO>
+					</UDim2>
+					<UDim2 name="Size">
+						<XS>0.8775834441184998</XS>
+						<XO>0</XO>
+						<YS>0.09226208925247192</YS>
+						<YO>0</YO>
+					</UDim2>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name"><![CDATA[TextLabel4]]></string>
+					<BinaryString name="SerializedOverrides"></BinaryString>
+					<SharedString name="Tags">MTAwMDAwMDAwMDAwMDAwMA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="ImageButton" referent="RBX3">
+				<Properties>
+					<Content name="Image">
+						<url><![CDATA[rbxassetid://71333287953660]]></url>
+					</Content>
+					<Color3 name="BackgroundColor3">
+						<R>0.6352941393852234</R>
+						<G>0.6352941393852234</G>
+						<B>0.6352941393852234</B>
+					</Color3>
+					<float name="BackgroundTransparency">1</float>
+					<int name="BorderSizePixel">0</int>
+					<UDim2 name="Position">
+						<XS>-0.06597774475812912</XS>
+						<XO>0</XO>
+						<YS>-0.181547611951828</YS>
+						<YO>0</YO>
+					</UDim2>
+					<UDim2 name="Size">
+						<XS>0.567567765712738</XS>
+						<XO>0</XO>
+						<YS>0.9747027158737183</YS>
+						<YO>0</YO>
+					</UDim2>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<bool name="DefinesCapabilities">false</bool>
+					<BinaryString name="SerializedOverrides"></BinaryString>
+					<SharedString name="Tags">MTAwMDAwMDAwMDAwMDAwMA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="TextLabel" referent="RBX4">
+				<Properties>
+					<Font name="FontFace">
+						<Family><url><![CDATA[rbxassetid://12187362578]]></url></Family>
+						<Weight>400</Weight>
+						<Style>Normal</Style>
+					</Font>
+					<string name="Text"><![CDATA[Is inyected the backdoor but not is easy removing The backdoor LOL]]></string>
+					<Color3 name="TextColor3">
+						<R>0</R>
+						<G>0</G>
+						<B>0</B>
+					</Color3>
+					<bool name="TextScaled">true</bool>
+					<bool name="TextWrapped">true</bool>
+					<Color3 name="BackgroundColor3">
+						<R>0.6352941393852234</R>
+						<G>0.6352941393852234</G>
+						<B>0.6352941393852234</B>
+					</Color3>
+					<float name="BackgroundTransparency">1</float>
+					<UDim2 name="Position">
+						<XS>0.44276630878448486</XS>
+						<XO>0</XO>
+						<YS>0.2991071343421936</YS>
+						<YO>0</YO>
+					</UDim2>
+					<UDim2 name="Size">
+						<XS>0.547694742679596</XS>
+						<XO>0</XO>
+						<YS>0.22470256686210632</YS>
+						<YO>0</YO>
+					</UDim2>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name"><![CDATA[TextLabel2]]></string>
+					<BinaryString name="SerializedOverrides"></BinaryString>
+					<SharedString name="Tags">MTAwMDAwMDAwMDAwMDAwMA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="TextLabel" referent="RBX5">
+				<Properties>
+					<Font name="FontFace">
+						<Family><url><![CDATA[rbxassetid://12187362578]]></url></Family>
+						<Weight>400</Weight>
+						<Style>Normal</Style>
+					</Font>
+					<string name="Text"><![CDATA[It’s got Backdoored This game]]></string>
+					<Color3 name="TextColor3">
+						<R>0</R>
+						<G>0</G>
+						<B>0</B>
+					</Color3>
+					<bool name="TextScaled">true</bool>
+					<bool name="TextWrapped">true</bool>
+					<Color3 name="BackgroundColor3">
+						<R>0.6352941393852234</R>
+						<G>0.6352941393852234</G>
+						<B>0.6352941393852234</B>
+					</Color3>
+					<float name="BackgroundTransparency">1</float>
+					<UDim2 name="Position">
+						<XS>0.4364069998264313</XS>
+						<XO>0</XO>
+						<YS>0.0580357126891613</YS>
+						<YO>0</YO>
+					</UDim2>
+					<UDim2 name="Size">
+						<XS>0.547694742679596</XS>
+						<XO>0</XO>
+						<YS>0.22470256686210632</YS>
+						<YO>0</YO>
+					</UDim2>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<bool name="DefinesCapabilities">false</bool>
+					<BinaryString name="SerializedOverrides"></BinaryString>
+					<SharedString name="Tags">MTAwMDAwMDAwMDAwMDAwMA==</SharedString>
+				</Properties>
+			</Item>
+			<Item class="TextLabel" referent="RBX6">
+				<Properties>
+					<Font name="FontFace">
+						<Family><url><![CDATA[rbxassetid://12187362578]]></url></Family>
+						<Weight>400</Weight>
+						<Style>Normal</Style>
+					</Font>
+					<string name="Text"><![CDATA[Two minutes after from closing the server good luck]]></string>
+					<Color3 name="TextColor3">
+						<R>0</R>
+						<G>0</G>
+						<B>0</B>
+					</Color3>
+					<bool name="TextScaled">true</bool>
+					<bool name="TextWrapped">true</bool>
+					<Color3 name="BackgroundColor3">
+						<R>0.6352941393852234</R>
+						<G>0.6352941393852234</G>
+						<B>0.6352941393852234</B>
+					</Color3>
+					<float name="BackgroundTransparency">1</float>
+					<UDim2 name="Position">
+						<XS>0.4356120824813843</XS>
+						<XO>0</XO>
+						<YS>0.5595238208770752</YS>
+						<YO>0</YO>
+					</UDim2>
+					<UDim2 name="Size">
+						<XS>0.547694742679596</XS>
+						<XO>0</XO>
+						<YS>0.22470256686210632</YS>
+						<YO>0</YO>
+					</UDim2>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name"><![CDATA[TextLabel3]]></string>
+					<BinaryString name="SerializedOverrides"></BinaryString>
+					<SharedString name="Tags">MTAwMDAwMDAwMDAwMDAwMA==</SharedString>
+				</Properties>
+			</Item>
 		</Item>
-				<Item class="Script" referent="RBX4">
-			<Properties>
-				<string name="Name">Test_2</string>
-				<BinaryString name="AttributesSerialize"></BinaryString>
-				<ProtectedString name="Source">
-					<![CDATA[
-						print("¡Script inyectado correctamente mediante RBXMX y etc!")
-					]]>
-				</ProtectedString>
-			</Properties>
-		</Item>	
 	</Item>
+	<SharedStrings>
+		<SharedString md5="MTAwMDAwMDAwMDAwMDAwMA=="></SharedString>
+	</SharedStrings>
 </roblox>
