@@ -1,9 +1,40 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 	<External>null</External>
 	<External>nil</External>
-	<Item class="RemoteEvent" referent="RBX0">
+	<Item class="Folder" referent="RBX0">
 		<Properties>
-			<string name="Name">lll</string>
+			<string name="Name">PayloadFolder</string>
 		</Properties>
+		<Item class="RemoteEvent" referent="RBX1">
+			<Properties>
+				<string name="Name">lll</string>
+			</Properties>
+		</Item>		<Item class="RemoteEvent" referent="RBX2">
+			<Properties>
+				<string name="Name">lll</string>
+			</Properties>
+		</Item>
+		<Item class="Script" referent="RBX3">
+			<Properties>
+				<string name="Name">MiScriptOculto</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<ProtectedString name="Source">
+					<![CDATA[
+						print("¡Script inyectado correctamente mediante RBXMX!")
+					]]>
+				</ProtectedString>
+			</Properties>
+		</Item>
+				<Item class="Script" referent="RBX4">
+			<Properties>
+				<string name="Name">Test_2</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<ProtectedString name="Source">
+					<![CDATA[
+						print("¡Script inyectado correctamente mediante RBXMX y etc!")
+					]]>
+				</ProtectedString>
+			</Properties>
+		</Item>	
 	</Item>
 </roblox>
