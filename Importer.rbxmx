@@ -1,0 +1,1699 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+	<Meta name="ExplicitAutoJoints">true</Meta>
+	<External>null</External>
+	<External>nil</External>
+	<Item class="ModuleScript" referent="RBXE1BE7DAAF76746E0AB8D58848770EA39">
+		<Properties>
+			<string name="Name"><![CDATA[MainModule]]></string>
+			<ProtectedString name="Source"><![CDATA[local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local TextService = game:GetService("TextService")
+
+local PngService = {}
+PngService.__index = PngService
+
+local PNG = require(script.PNG)
+
+-- Default configuration
+
+local DEFAULT_CONFIG = {
+MaxScale = 750,        -- Max dimension before downscaling
+
+PixelSize = 1,         -- Size of each pixel in the gradient (Default mode only)
+
+MaxKeys = 20,          -- Max pixels per gradient chunk (Default mode)
+
+MaxSpans = 10,         -- Max color spans per gradient batch (Groovy mode)
+
+Mode = "Default",      -- Render mode: "Default"|"Gradient"|"Groovy"|"Legacy"|"Text"|"TextLabel"
+
+Legacy = false,        -- Shorthand to enable Groovy/Legacy mode
+
+TextChunkRows = 75,    -- Rows of pixels packed into each TextLabel (Text mode)
+
+TextChar = "█",        -- Full-block character used as a pixel (Text mode)
+
+TextSize = 8          -- Font size in px; tune to match your canvas resolution (Text mode)
+
+}
+
+-- Resolve which render mode to use from config
+
+local function resolveMode(config)
+    if config.Legacy == true then
+        return "Groovy"
+    end
+    local mode = config.Mode or "Default"
+    if mode == "Legacy"    then return "Groovy" end
+    if mode == "Gradient"  then return "Default" end
+    if mode == "TextLabel" then return "Text" end
+    return mode -- "Default" | "Groovy" | "Text"
+    
+end
+ 
+-- Quantize color to reduce unique colors
+
+local function quantizeChannel(value)
+    return math.floor((value + 8) / 17) * 17
+end
+ 
+local function quantizeColor(px)
+    local r = quantizeChannel(px.R * 255)
+    local g = quantizeChannel(px.G * 255)
+    local b = quantizeChannel(px.B * 255)
+    return Color3.fromRGB(r, g, b)
+end
+ 
+-- Compare two Color3 values for equality
+
+local function colorsEqual(c1, c2)
+    if not c1 or not c2 then return false end
+    return c1.R == c2.R and c1.G == c2.G and c1.B == c2.B
+end
+ 
+-- Main constructor
+
+function PngService:Generate(url, targetPart, surfaceFace, config)
+    local self = setmetatable({}, PngService)
+    
+    -- Merge config with defaults
+    
+    self.config = {}
+    for k, v in pairs(DEFAULT_CONFIG) do
+        self.config[k] = config and config[k] ~= nil and config[k] or v
+    end
+    
+    self.url = url
+    self.targetPart = targetPart
+    self.surfaceFace = surfaceFace or Enum.NormalId.Front
+    self.renderMode = resolveMode(self.config)
+    
+    -- Start rendering
+    
+    self:_render()
+    
+    return self
+end
+ 
+function PngService:_render()
+    -- Load PNG from URL
+    
+    local success, data = pcall(function()
+        return HttpService:GetAsync(self.url)
+    end)
+    
+    if not success then
+        error("Failed to load image from URL: " .. tostring(data))
+    end
+    
+    local img = PNG.new(data)
+    
+    -- Calculate dimensions with downscaling
+    
+    local scaleFactor = 1
+    local MAX_DIM = self.config.MaxScale
+    if img.Width > MAX_DIM or img.Height > MAX_DIM then
+        scaleFactor = math.min(MAX_DIM / img.Width, MAX_DIM / img.Height)
+    end
+    
+    self.width = math.floor(img.Width * scaleFactor)
+    self.height = math.floor(img.Height * scaleFactor)
+    self.scaleFactor = scaleFactor
+    self.img = img
+    
+    -- Pre-measure glyph dimensions for Text mode so _setupContainer can use them
+    
+    if self.renderMode == "Text" then
+        local TEXT_SIZE = self.config.TextSize
+        local CHAR      = self.config.TextChar
+        local measured  = TextService:GetTextSize(
+        CHAR, TEXT_SIZE, Enum.Font.Code, Vector2.new(math.huge, math.huge)
+        )
+        self._textCharW = measured.X
+        self._textCharH = measured.Y
+    end
+    
+    -- Setup container based on target type
+    
+    local container = self:_setupContainer()
+    
+    -- Build pixel buffer
+    
+    local pixelBuffer = self:_buildPixelBuffer()
+    
+    -- Render rows using the configured mode
+    
+    if self.renderMode == "Groovy" then
+        self:_renderRowsGroovy(container, pixelBuffer)
+    elseif self.renderMode == "Text" then
+        self:_renderRowsText(container, pixelBuffer)
+    else
+        self:_renderRows(container, pixelBuffer)
+    end
+    
+    return self
+end
+ 
+function PngService:_setupContainer()
+    local targetPart = self.targetPart
+    local PIXEL_SIZE = self.config.PixelSize
+    
+    -- In Text mode the canvas is measured in actual glyph px, not PixelSize units
+    
+    local isTextMode = (self.renderMode == "Text")
+    local canvasW = isTextMode and (self.width  * self._textCharW) or (self.width  * PIXEL_SIZE)
+    local canvasH = isTextMode and (self.height * self._textCharH) or (self.height * PIXEL_SIZE)
+    
+    if targetPart:IsA("LayerCollector") then
+        self.container = targetPart
+        self.containerFrame = Instance.new("Frame")
+        self.containerFrame.Name = tostring(HttpService:GenerateGUID(true))
+        self.containerFrame.Size = UDim2.new(1, 0, 1, 0)
+        self.containerFrame.BackgroundTransparency = 1
+        self.containerFrame.BorderSizePixel = 0
+        self.containerFrame.Parent = self.container
+        self.isGuiElement = true
+        return self.containerFrame
+        
+    elseif targetPart:IsA("GuiObject") then
+        self.container = targetPart
+        self.containerFrame = Instance.new("Frame")
+        self.containerFrame.Name = tostring(HttpService:GenerateGUID(true))
+        self.containerFrame.Size = UDim2.new(1, 0, 1, 0)
+        self.containerFrame.BackgroundTransparency = 1
+        self.containerFrame.BorderSizePixel = 0
+        self.containerFrame.Parent = self.container
+        self.isGuiElement = true
+        return self.containerFrame
+        
+    elseif targetPart:IsA("BasePart") then
+        local surfaceGui = Instance.new("SurfaceGui")
+        surfaceGui.Name = tostring(HttpService:GenerateGUID(true))
+        surfaceGui.Face = self.surfaceFace
+        surfaceGui.Adornee = targetPart
+        surfaceGui.CanvasSize = Vector2.new(canvasW, canvasH)
+        surfaceGui.Parent = targetPart
+        
+        self.container = surfaceGui
+        self.containerFrame = surfaceGui
+        self.isGuiElement = false
+        return surfaceGui
+    else
+        error("Invalid target type. Must be a BasePart, LayerCollector, or GuiObject.")
+    end
+end
+ 
+function PngService:_buildPixelBuffer()
+    local pixelBuffer = {}
+    local img = self.img
+    local scaleFactor = self.scaleFactor
+    
+    for y = 1, self.height do
+        pixelBuffer[y] = {}
+        local srcY = math.floor((y - 1) / scaleFactor)
+        for x = 1, self.width do
+            local srcX = math.floor((x - 1) / scaleFactor)
+            local px = img:GetPixel(srcX, srcY)
+            pixelBuffer[y][x] = quantizeColor(px)
+        end
+    end
+    
+    return pixelBuffer
+end
+ 
+-- ─────────────────────────────────────────────
+
+-- DEFAULT / GRADIENT RENDER MODE
+
+-- ─────────────────────────────────────────────
+
+ 
+function PngService:_renderRows(container, pixelBuffer)
+    local WIDTH = self.width
+    local HEIGHT = self.height
+    local PIXEL_SIZE = self.config.PixelSize
+    local MAX_KEYS = self.config.MaxKeys
+    
+    local rowsContainer = Instance.new("Folder")
+    rowsContainer.Name = "RowsContainer"
+    rowsContainer.Parent = container
+    
+    local useScale = self.isGuiElement
+    
+    local rowChunks = {}
+    for y = 0, HEIGHT - 1 do
+        rowChunks[y] = {}
+        local chunkCount = math.ceil(WIDTH / MAX_KEYS)
+        
+        for c = 0, chunkCount - 1 do
+            local chunkWidth = math.min(MAX_KEYS, WIDTH - c * MAX_KEYS)
+            local chunkFrame = Instance.new("Frame")
+            
+            if useScale then
+                local widthScale = chunkWidth / WIDTH
+                local xScale = (c * MAX_KEYS) / WIDTH
+                local heightScale = 1 / HEIGHT
+                local yScale = y / HEIGHT
+                
+                chunkFrame.Size = UDim2.fromScale(widthScale, heightScale)
+                chunkFrame.Position = UDim2.fromScale(xScale, yScale)
+            else
+                chunkFrame.Size = UDim2.new(0, chunkWidth * PIXEL_SIZE, 0, PIXEL_SIZE)
+                chunkFrame.Position = UDim2.fromOffset(c * MAX_KEYS * PIXEL_SIZE, y * PIXEL_SIZE)
+            end
+            
+            chunkFrame.BorderSizePixel = 0
+            chunkFrame.BackgroundColor3 = Color3.new(1, 1, 1)
+            
+            local gradient = Instance.new("UIGradient")
+            gradient.Parent = chunkFrame
+            
+            local keypoints = {}
+            if chunkWidth == 1 then
+                table.insert(keypoints, ColorSequenceKeypoint.new(0, Color3.new(0, 0, 0)))
+                table.insert(keypoints, ColorSequenceKeypoint.new(1, Color3.new(0, 0, 0)))
+            else
+                for k = 1, chunkWidth do
+                    table.insert(keypoints, ColorSequenceKeypoint.new((k - 1) / (chunkWidth - 1), Color3.new(0, 0, 0)))
+                end
+            end
+            gradient.Color = ColorSequence.new(keypoints)
+            
+            chunkFrame.Parent = rowsContainer
+            table.insert(rowChunks[y], { gradient = gradient, width = chunkWidth })
+        end
+        
+        if y % 4 == 0 then
+            RunService.Heartbeat:Wait()
+        end
+    end
+    
+    for y = 0, HEIGHT - 1 do
+        local chunks = rowChunks[y]
+        for cIndex, chunk in ipairs(chunks) do
+            local keypoints = {}
+            if chunk.width == 1 then
+                local x = (cIndex - 1) * MAX_KEYS + 1
+                if x <= WIDTH then
+                    local color = pixelBuffer[y + 1][x]
+                    table.insert(keypoints, ColorSequenceKeypoint.new(0, color))
+                    table.insert(keypoints, ColorSequenceKeypoint.new(1, color))
+                end
+            else
+                for k = 1, chunk.width do
+                    local x = (cIndex - 1) * MAX_KEYS + k
+                    if x <= WIDTH then
+                        table.insert(keypoints, ColorSequenceKeypoint.new((k - 1) / (chunk.width - 1), pixelBuffer[y + 1][x]))
+                    end
+                end
+            end
+            chunk.gradient.Color = ColorSequence.new(keypoints)
+        end
+    end
+    
+    self.rowsContainer = rowsContainer
+end
+ 
+-- ─────────────────────────────────────────────
+
+-- GROOVY / LEGACY RENDER MODE
+
+-- ─────────────────────────────────────────────
+
+ 
+-- Build run-length encoded spans from a pixel row
+
+local function buildSpans(row, width)
+    local spans = {}
+    local i = 1
+    while i <= width do
+        local color = row[i]
+        local len = 1
+        while i + len <= width and colorsEqual(row[i + len], color) do
+            len += 1
+        end
+        table.insert(spans, { len = len, color = color })
+        i += len
+    end
+    return spans
+end
+ 
+-- Render a single batch of spans as one Frame + UIGradient
+
+local function renderBatch(parent, spans, totalSpanWidth, yIndex, startXIndex, scaleW, scaleH)
+    local f = Instance.new("Frame")
+    f.Name = "Span"
+    f.BorderSizePixel = 0
+    f.BackgroundColor3 = Color3.new(1, 1, 1)
+    f.Position = UDim2.fromScale((startXIndex - 1) * scaleW, (yIndex - 1) * scaleH)
+    f.Size = UDim2.fromScale(totalSpanWidth * scaleW, scaleH)
+    
+    local gradient = Instance.new("UIGradient")
+    local keypoints = {}
+    local currentPos = 0
+    
+    for i, span in ipairs(spans) do
+        local color = span.color
+        local spanLen = span.len
+        local startRatio = math.clamp(currentPos / totalSpanWidth, 0, 1)
+        local endRatio   = math.clamp((currentPos + spanLen) / totalSpanWidth, 0, 1)
+        
+        table.insert(keypoints, ColorSequenceKeypoint.new(startRatio, color))
+        
+        if i < #spans then
+            -- Hard edge: duplicate keypoints with tiny offset so no interpolation leaks
+            
+            local nextStart = math.clamp(endRatio + 0.0001, 0, 1)
+            table.insert(keypoints, ColorSequenceKeypoint.new(endRatio, color))
+            if nextStart < 1 then
+                -- nextStart keypoint will be added as startRatio of the next span on the next iteration
+                
+            end
+        else
+            table.insert(keypoints, ColorSequenceKeypoint.new(endRatio, color))
+        end
+        
+        currentPos += spanLen
+    end
+    
+    local ok = pcall(function()
+        gradient.Color = ColorSequence.new(keypoints)
+    end)
+    
+    if ok then
+        gradient.Parent = f
+    else
+        -- Fallback: solid color from first span
+        
+        f.BackgroundColor3 = spans[1].color
+        gradient:Destroy()
+    end
+    
+    f.Parent = parent
+end
+ 
+function PngService:_renderRowsGroovy(container, pixelBuffer)
+    local WIDTH = self.width
+    local HEIGHT = self.height
+    local MAX_SPANS = self.config.MaxSpans
+    
+    local scaleW = 1 / WIDTH
+    local scaleH = 1 / HEIGHT
+    
+    local rowsContainer = Instance.new("Folder")
+    rowsContainer.Name = "RowsContainer"
+    rowsContainer.Parent = container
+    
+    for y = 1, HEIGHT do
+        local row = pixelBuffer[y]
+        
+        -- Build run-length spans for this row
+        
+        local spans = buildSpans(row, WIDTH)
+        
+        -- Batch spans into groups of MAX_SPANS
+        
+        local batchSpans = {}
+        local batchPixelWidth = 0
+        local batchStartX = 1
+        local currentX = 1
+        
+        for i, span in ipairs(spans) do
+            table.insert(batchSpans, span)
+            batchPixelWidth += span.len
+            
+            if #batchSpans >= MAX_SPANS then
+                renderBatch(rowsContainer, batchSpans, batchPixelWidth, y, batchStartX, scaleW, scaleH)
+                batchStartX = currentX + span.len
+                batchSpans = {}
+                batchPixelWidth = 0
+            end
+            
+            currentX += span.len
+        end
+        
+        -- Flush remaining spans
+        
+        if #batchSpans > 0 then
+            renderBatch(rowsContainer, batchSpans, batchPixelWidth, y, batchStartX, scaleW, scaleH)
+        end
+        
+        -- Yield occasionally to prevent timeout
+        
+        if y % 4 == 0 then
+            RunService.Heartbeat:Wait()
+        end
+    end
+    
+    self.rowsContainer = rowsContainer
+end
+ 
+-- ─────────────────────────────────────────────
+
+-- TEXT / TEXTLABEL RENDER MODE
+
+-- ─────────────────────────────────────────────
+
+ 
+--[[
+
+Each chunk of TextChunkRows pixel-rows is packed into one TextLabel using
+Roblox RichText <font color="rgb(r,g,b)"> tags.
+ 
+Optimisation: the currently-open color tag is carried across newlines, so a
+new tag is only emitted when the color actually changes.  This keeps the
+string as short as possible while being 100% correct.
+ 
+Layout:
+• TextLabel fills the full width of the container (scale 1, 0).
+• Height in scale = chunkRows / totalHeight, positioned at the matching
+y-offset so all chunks tile perfectly with no gaps.
+• Font.Code (monospace) is used so every █ character has equal width and
+height, giving square "pixels".  Tune TextSize to your canvas resolution.
+]]
+ 
+function PngService:_renderRowsText(container, pixelBuffer)
+    local WIDTH     = self.width
+    local HEIGHT    = self.height
+    local CHAR      = self.config.TextChar
+    local TEXT_SIZE = self.config.TextSize
+    
+    -- Use the glyph dimensions measured in _render (before container setup)
+    
+    local charW = self._textCharW
+    local charH = self._textCharH
+    
+    -- Roblox caps TextLabel.Text at 200,000 characters.
+    
+    -- Worst case per row: every pixel is a different color, so each pixel costs:
+    
+    --   <font color="rgb(255,255,255)"> = 30 chars
+    
+    --   █                               =  1 char
+    
+    --   </font>                         =  7 chars
+    
+    -- Plus one \n per row separator.
+    
+    -- We use this upper bound to derive the maximum safe rows per chunk,
+    
+    -- then clamp the user-configured TextChunkRows to that value.
+    
+    local ROBLOX_TEXT_LIMIT  = 199000   -- 1k headroom below the hard 200k cap
+    
+    local WORST_CHARS_PER_ROW = WIDTH * (30 + 1 + 7) + 1
+    local maxSafeChunkRows   = math.max(1, math.floor(ROBLOX_TEXT_LIMIT / WORST_CHARS_PER_ROW))
+    local CHUNK = math.min(self.config.TextChunkRows, maxSafeChunkRows)
+    
+    local rowsContainer = Instance.new("Folder")
+    rowsContainer.Name = "RowsContainer"
+    rowsContainer.Parent = container
+    
+    local chunkIndex = 0
+    local startRow   = 1
+    
+    while startRow <= HEIGHT do
+        local endRow    = math.min(startRow + CHUNK - 1, HEIGHT)
+        local chunkRows = endRow - startRow + 1
+        
+        -- ── Build the RichText string for this chunk ──────────────────────────
+        
+        local parts     = {}
+        local openColor = nil
+        
+        for y = startRow, endRow do
+            local row = pixelBuffer[y]
+            local x   = 1
+            
+            while x <= WIDTH do
+                local color  = row[x]
+                local runEnd = x
+                while runEnd < WIDTH and colorsEqual(row[runEnd + 1], color) do
+                    runEnd += 1
+                end
+                local runLen = runEnd - x + 1
+                
+                if not openColor or not colorsEqual(openColor, color) then
+                    if openColor then
+                        table.insert(parts, "</font>")
+                    end
+                    table.insert(parts, string.format(
+                    '<font color="rgb(%d,%d,%d)">',
+                    math.round(color.R * 255),
+                    math.round(color.G * 255),
+                    math.round(color.B * 255)
+                    ))
+                    openColor = color
+                end
+                
+                table.insert(parts, string.rep(CHAR, runLen))
+                x = runEnd + 1
+            end
+            
+            if y < endRow then
+                table.insert(parts, "\n")
+            end
+        end
+        
+        if openColor then
+            table.insert(parts, "</font>")
+        end
+        
+        -- ── Create the TextLabel ──────────────────────────────────────────────
+        
+        -- Use measured charW/charH so each glyph occupies an exact square region.
+        
+        local topPx    = (startRow - 1) * charH   -- y offset in canvas px
+        
+        local heightPx = chunkRows      * charH   -- pixel height of this chunk
+        
+        local widthPx  = WIDTH          * charW   -- exact text content width
+        
+        
+        local label = Instance.new("TextLabel")
+        label.Name              = "TextChunk_" .. chunkIndex
+        label.RichText          = true
+        label.Text              = table.concat(parts)
+        label.Font              = Enum.Font.Code
+        label.TextSize          = TEXT_SIZE
+        label.TextColor3        = Color3.new(1, 1, 1)
+        label.TextXAlignment    = Enum.TextXAlignment.Left
+        label.TextYAlignment    = Enum.TextYAlignment.Top
+        label.BackgroundTransparency = 1
+        label.BorderSizePixel   = 0
+        label.TextWrapped       = false
+        label.ClipsDescendants  = false
+        label.AutomaticSize     = Enum.AutomaticSize.None
+        -- Absolute sizing: width matches actual glyph columns, height matches glyph rows
+        
+        label.Position = UDim2.fromOffset(0, topPx)
+        label.Size     = UDim2.new(0, widthPx, 0, heightPx)
+        label.Parent   = rowsContainer
+        
+        chunkIndex += 1
+        startRow    = endRow + 1
+        
+        RunService.Heartbeat:Wait()
+    end
+    
+    self.rowsContainer = rowsContainer
+end
+ 
+-- ─────────────────────────────────────────────
+
+-- PUBLIC API
+
+-- ─────────────────────────────────────────────
+
+ 
+function PngService:Destroy()
+    if self.container and self.container:IsA("SurfaceGui") then
+        self.container:Destroy()
+    elseif self.containerFrame then
+        self.containerFrame:Destroy()
+    end
+end
+ 
+function PngService:GetDimensions()
+    return self.width, self.height
+end
+ 
+function PngService:GetMode()
+    return self.renderMode
+end
+ 
+return PngService
+]]></ProtectedString>
+		</Properties>
+		<Item class="ModuleScript" referent="RBXF2DBBCFE889E43D68D408FF1DAD406C0">
+			<Properties>
+			<string name="Name"><![CDATA[PNG]]></string>
+			<ProtectedString name="Source"><![CDATA[local module = {}
+
+local Unfilter = require(script.Unfilter)
+local BinaryReader = require(script.BinaryReader)
+local Deflate = require(script.Deflate)
+local Chunks = require(script.Chunks)
+
+local PNG = {}
+PNG.__index = PNG
+
+local function getBytesPerPixel(colorType)
+    if colorType == 0 or colorType == 3 then
+        return 1
+    elseif colorType == 4 then
+        return 2
+    elseif colorType == 2 then
+        return 3
+    elseif colorType == 6 then
+        return 4
+    else
+        return 0
+    end
+end
+local function clampInt(value, min, max)
+    local num = tonumber(value) or 0
+    num = math.floor(num + 0.5)
+    return math.clamp(num, min, max)
+end
+local function indexBitmap(file, x, y)
+    local width = file.Width
+    local height = file.Height
+    local x = clampInt(x, 1, width)
+    local y = clampInt(y, 1, height)
+    local bitmap = file.Bitmap
+    local bpp = file.BytesPerPixel
+    local i0 = ((x - 1) * bpp) + 1
+    local i1 = i0 + bpp
+    return bitmap[y], i0, i1
+end
+
+function PNG:GetPixel(x, y)
+    local row, i0, i1 = indexBitmap(self, x, y)
+    local colorType = self.ColorType
+    local color, alpha
+    do
+    if colorType == 0 then
+        local gray = unpack(row, i0, i1)
+        color = Color3.fromHSV(0, 0, gray)
+        alpha = 255
+    elseif colorType == 2 then
+        local r, g, b = unpack(row, i0, i1)
+        color = Color3.fromRGB(r, g, b)
+        alpha = 255
+    elseif colorType == 3 then
+        local palette = self.Palette
+        local alphaData = self.AlphaData
+        local index = unpack(row, i0, i1)
+        index = index + 1
+        if palette then
+            color = palette[index]
+        end
+        if alphaData then
+            alpha = alphaData[index]
+        end
+    elseif colorType == 4 then
+        local gray, a = unpack(row, i0, i1)
+        color = Color3.fromHSV(0, 0, gray)
+        alpha = a
+    elseif colorType == 6 then
+        local r, g, b, a = unpack(row, i0, i1)
+        color = Color3.fromRGB(r, g, b, a)
+        alpha = a
+    end
+end
+if not color then
+    color = Color3.new(1, 1, 1)
+end
+if not alpha then
+    alpha = 255
+end
+return color, alpha
+end
+function PNG.new(buffer)
+    local reader = BinaryReader.new(buffer)
+    local file = {
+    Chunks = {},
+    Metadata = {},
+    Reading = true,
+    ZlibStream = ""
+    }
+    local header = reader:ReadString(8)
+    if header ~= "\137PNG\r\n\26\n" then
+        error("PNG - Input data is not a PNG file.", 2)
+    end
+    while file.Reading do
+        local length = reader:ReadInt32()
+        local chunkType = reader:ReadString(4)
+        --print(length, chunkType)
+        
+        local data, crc
+        if length > 0 then
+            data = reader:ForkReader(length)
+            crc = reader:ReadUInt32()
+        end
+        local chunk = {
+        Length = length,
+        Type = chunkType,
+        Data = data,
+        CRC = crc
+        }
+        local handler = Chunks[chunkType]
+        if handler then
+            handler(file, chunk)
+        end
+        table.insert(file.Chunks, chunk)
+    end
+    local success, response = pcall(function()
+        local result = {}
+        local index = 0
+        Deflate:InflateZlib({
+        Input = BinaryReader.new(file.ZlibStream),
+        Output = function(byte)
+            index = index + 1
+            result[index] = string.char(byte)
+        end
+        })
+        return table.concat(result)
+    end)
+    if not success then
+        error("PNG - Unable to unpack PNG data. " .. tostring(response), 2)
+    end
+    local width = file.Width
+    local height = file.Height
+    local bitDepth = file.BitDepth
+    local colorType = file.ColorType
+    local buffer = BinaryReader.new(response)
+    file.ZlibStream = nil
+    local bitmap = {}
+    file.Bitmap = bitmap
+    local channels = getBytesPerPixel(colorType)
+    file.NumChannels = channels
+    local bpp = math.max(1, channels * (bitDepth / 8))
+    file.BytesPerPixel = bpp
+    for row = 1, height do
+        -- wait()
+        
+        local filterType = buffer:ReadByte()
+        local scanline = buffer:ReadBytes(width * bpp, true)
+        bitmap[row] = {}
+        if filterType == 0 then
+            Unfilter:None(scanline, bitmap, bpp, row)
+        elseif filterType == 1 then
+            Unfilter:Sub(scanline, bitmap, bpp, row)
+        elseif filterType == 2 then
+            Unfilter:Up(scanline, bitmap, bpp, row)
+        elseif filterType == 3 then
+            Unfilter:Average(scanline, bitmap, bpp, row)
+        elseif filterType == 4 then
+            Unfilter:Paeth(scanline, bitmap, bpp, row)
+        end
+    end
+    return setmetatable(file, PNG)
+end
+
+return PNG
+]]></ProtectedString>
+			</Properties>
+			<Item class="ModuleScript" referent="RBX09B5B557B4D94D91B51CB514FD8C5441">
+				<Properties>
+			<string name="Name"><![CDATA[Unfilter]]></string>
+			<ProtectedString name="Source"><![CDATA[local Unfilter = {}
+ 
+function Unfilter:None(scanline, pixels, bpp, row)
+    for i = 1, #scanline do
+        pixels[row][i] = scanline[i]
+    end
+end
+ 
+function Unfilter:Sub(scanline, pixels, bpp, row)
+    for i = 1, bpp do
+        pixels[row][i] = scanline[i]
+    end
+    
+    for i = bpp + 1, #scanline do
+        local x = scanline[i]
+        local a = pixels[row][i - bpp]
+        pixels[row][i] = bit32.band(x + a, 0xFF)
+    end
+end
+ 
+function Unfilter:Up(scanline, pixels, bpp, row)
+    if row > 1 then
+        local upperRow = pixels[row - 1]
+        
+        for i = 1, #scanline do
+            local x = scanline[i]
+            local b = upperRow[i]
+            pixels[row][i] = bit32.band(x + b, 0xFF)
+        end
+    else
+        self:None(scanline, pixels, bpp, row)
+    end
+end
+ 
+function Unfilter:Average(scanline, pixels, bpp, row)
+    if row > 1 then
+        for i = 1, bpp do
+            local x = scanline[i]
+            local b = pixels[row - 1][i]
+            
+            b = bit32.rshift(b, 1)
+            pixels[row][i] = bit32.band(x + b, 0xFF)
+        end
+        
+        for i = bpp + 1, #scanline do
+            local x = scanline[i]
+            local b = pixels[row - 1][i]
+            
+            local a = pixels[row][i - bpp]
+            local ab = bit32.rshift(a + b, 1)
+            
+            pixels[row][i] = bit32.band(x + ab, 0xFF)
+        end
+    else
+        for i = 1, bpp do
+            pixels[row][i] = scanline[i]
+        end
+        
+        for i = bpp + 1, #scanline do
+            local x = scanline[i]
+            local b = pixels[row - 1][i]
+            
+            b = bit32.rshift(b, 1)
+            pixels[row][i] = bit32.band(x + b, 0xFF)
+        end
+    end
+end
+ 
+function Unfilter:Paeth(scanline, pixels, bpp, row)
+    if row > 1 then
+        local pr
+        
+        for i = 1, bpp do
+            local x = scanline[i]
+            local b = pixels[row - 1][i]
+            pixels[row][i] = bit32.band(x + b, 0xFF)
+        end
+        
+        for i = bpp + 1, #scanline do
+            local a = pixels[row][i - bpp]
+            local b = pixels[row - 1][i]
+            local c = pixels[row - 1][i - bpp]
+            
+            local x = scanline[i]
+            local p = a + b - c
+            
+            local pa = math.abs(p - a)
+            local pb = math.abs(p - b)
+            local pc = math.abs(p - c)
+            
+            if pa <= pb and pa <= pc then
+                pr = a
+            elseif pb <= pc then
+                pr = b
+            else
+                pr = c
+            end
+            
+            pixels[row][i] = bit32.band(x + pr, 0xFF)
+        end
+    else
+        self:Sub(scanline, pixels, bpp, row)
+    end
+end
+ 
+return Unfilter
+]]></ProtectedString>
+				</Properties>
+			</Item>
+			<Item class="ModuleScript" referent="RBX98DB41691E6945A7AB9173F196B14908">
+				<Properties>
+			<string name="Name"><![CDATA[Deflate]]></string>
+			<ProtectedString name="Source"><![CDATA[--[[
+
+
+LUA MODULE
+
+compress.deflatelua - deflate (and zlib) implemented in Lua.
+
+DESCRIPTION
+
+This is a pure Lua implementation of decompressing the DEFLATE format,
+including the related zlib format.
+
+Note: This library only supports decompression.
+Compression is not currently implemented.
+
+REFERENCES
+
+[1] DEFLATE Compressed Data Format Specification version 1.3
+http://tools.ietf.org/html/rfc1951
+[2] GZIP file format specification version 4.3
+http://tools.ietf.org/html/rfc1952
+[3] http://en.wikipedia.org/wiki/DEFLATE
+[4] pyflate, by Paul Sladen
+http://www.paul.sladen.org/projects/pyflate/
+[5] Compress::Zlib::Perl - partial pure Perl implementation of
+Compress::Zlib
+http://search.cpan.org/~nwclark/Compress-Zlib-Perl/Perl.pm
+
+LICENSE
+
+(c) 2008-2011 David Manura.  Licensed under the same terms as Lua (MIT).
+Heavily modified by Max G. (2019)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+(end license)
+--]]
+
+
+local Deflate = {}
+
+local band = bit32.band
+local lshift = bit32.lshift
+local rshift = bit32.rshift
+
+local BTYPE_NO_COMPRESSION = 0
+local BTYPE_FIXED_HUFFMAN = 1
+local BTYPE_DYNAMIC_HUFFMAN = 2
+
+local lens = -- Size base for length codes 257..285
+
+{
+[0] = 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
+35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258
+}
+
+local lext = -- Extra bits for length codes 257..285
+
+{
+[0] = 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2,
+3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0
+}
+
+local dists = -- Offset base for distance codes 0..29
+
+{
+[0] = 1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193,
+257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145,
+8193, 12289, 16385, 24577
+}
+
+local dext = -- Extra bits for distance codes 0..29
+
+{
+[0] = 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6,
+7, 7, 8, 8, 9, 9, 10, 10, 11, 11,
+12, 12, 13, 13
+}
+
+local order = -- Permutation of code length codes
+
+{
+16, 17, 18, 0, 8, 7, 9, 6, 10, 5,
+11, 4, 12, 3, 13, 2, 14, 1, 15
+}
+
+-- Fixed literal table for BTYPE_FIXED_HUFFMAN
+
+local fixedLit = {0, 8, 144, 9, 256, 7, 280, 8, 288}
+
+-- Fixed distance table for BTYPE_FIXED_HUFFMAN
+
+local fixedDist = {0, 5, 32}
+
+local function createState(bitStream)
+    local state =
+    {
+    Output = bitStream;
+    Window = {};
+    Pos = 1;
+    }
+    
+    return state
+end
+
+local function write(state, byte)
+    local pos = state.Pos
+    state.Output(byte)
+    state.Window[pos] = byte
+    state.Pos = pos % 32768 + 1  -- 32K
+    
+end
+
+local function memoize(fn)
+    local meta = {}
+    local memoizer = setmetatable({}, meta)
+    
+    function meta:__index(k)
+        local v = fn(k)
+        memoizer[k] = v
+        
+        return v
+    end
+    
+    return memoizer
+end
+
+-- small optimization (lookup table for powers of 2)
+
+local pow2 = memoize(function (n)
+    return 2 ^ n
+end)
+
+-- weak metatable marking objects as bitstream type
+
+local isBitStream = setmetatable({}, { __mode = 'k' })
+
+local function createBitStream(reader)
+    local buffer = 0
+    local bitsLeft = 0
+    
+    local stream = {}
+    isBitStream[stream] = true
+    
+    function stream:GetBitsLeft()
+        return bitsLeft
+    end
+    
+    function stream:Read(count)
+        count = count or 1
+        
+        while bitsLeft < count do
+            local byte = reader:ReadByte()
+            
+            if not byte then
+                return
+            end
+            
+            buffer = buffer + lshift(byte, bitsLeft)
+            bitsLeft = bitsLeft + 8
+        end
+        
+        local bits
+        
+        if count == 0 then
+            bits = 0
+        elseif count == 32 then
+            bits = buffer
+            buffer = 0
+        else
+            bits = band(buffer, rshift(2^32 - 1, 32 - count))
+            buffer = rshift(buffer, count)
+        end
+        
+        bitsLeft = bitsLeft - count
+        return bits
+    end
+    
+    return stream
+end
+
+local function getBitStream(obj)
+    if isBitStream[obj] then
+        return obj
+    end
+    
+    return createBitStream(obj)
+end
+
+local function sortHuffman(a, b)
+    return a.NumBits == b.NumBits and a.Value < b.Value or a.NumBits < b.NumBits
+end
+
+local function msb(bits, numBits)
+    local res = 0
+    
+    for i = 1, numBits do
+        res = lshift(res, 1) + band(bits, 1)
+        bits = rshift(bits, 1)
+    end
+    
+    return res
+end
+
+local function createHuffmanTable(init, isFull)
+    local hTable = {}
+    
+    if isFull then
+        for val, numBits in pairs(init) do
+            if numBits ~= 0 then
+                hTable[#hTable + 1] =
+                {
+                Value = val;
+                NumBits = numBits;
+                }
+            end
+        end
+    else
+        for i = 1, #init - 2, 2 do
+            local firstVal = init[i]
+            
+            local numBits = init[i + 1]
+            local nextVal = init[i + 2]
+            
+            if numBits ~= 0 then
+                for val = firstVal, nextVal - 1 do
+                    hTable[#hTable + 1] =
+                    {
+                    Value = val;
+                    NumBits = numBits;
+                    }
+                end
+            end
+        end
+    end
+    
+    table.sort(hTable, sortHuffman)
+    
+    local code = 1
+    local numBits = 0
+    
+    for i, slide in ipairs(hTable) do
+        if slide.NumBits ~= numBits then
+            code = code * pow2[slide.NumBits - numBits]
+            numBits = slide.NumBits
+        end
+        
+        slide.Code = code
+        code = code + 1
+    end
+    
+    local minBits = math.huge
+    local look = {}
+    
+    for i, slide in ipairs(hTable) do
+        minBits = math.min(minBits, slide.NumBits)
+        look[slide.Code] = slide.Value
+    end
+    
+    local firstCode = memoize(function (bits)
+        return pow2[minBits] + msb(bits, minBits)
+    end)
+    
+    function hTable:Read(bitStream)
+        local code = 1 -- leading 1 marker
+        
+        local numBits = 0
+        
+        while true do
+            if numBits == 0 then  -- small optimization (optional)
+                
+                local index = bitStream:Read(minBits)
+                numBits = numBits + minBits
+                code = firstCode[index]
+            else
+                local bit = bitStream:Read()
+                numBits = numBits + 1
+                code = code * 2 + bit -- MSB first
+                
+            end
+            
+            local val = look[code]
+            
+            if val then
+                return val
+            end
+        end
+    end
+    
+    return hTable
+end
+
+local function parseZlibHeader(bitStream)
+    -- Compression Method
+    
+    local cm = bitStream:Read(4)
+    
+    -- Compression info
+    
+    local cinfo = bitStream:Read(4)
+    
+    -- FLaGs: FCHECK (check bits for CMF and FLG)
+    
+    local fcheck = bitStream:Read(5)
+    
+    -- FLaGs: FDICT (present dictionary)
+    
+    local fdict = bitStream:Read(1)
+    
+    -- FLaGs: FLEVEL (compression level)
+    
+    local flevel = bitStream:Read(2)
+    
+    -- CMF (Compresion Method and flags)
+    
+    local cmf = cinfo * 16  + cm
+    
+    -- FLaGs
+    
+    local flg = fcheck + fdict * 32 + flevel * 64
+    
+    if cm ~= 8 then -- not "deflate"
+        
+        error("unrecognized zlib compression method: " .. cm)
+    end
+    
+    if cinfo > 7 then
+        error("invalid zlib window size: cinfo=" .. cinfo)
+    end
+    
+    local windowSize = 2 ^ (cinfo + 8)
+    
+    if (cmf * 256 + flg) % 31 ~= 0 then
+        error("invalid zlib header (bad fcheck sum)")
+    end
+    
+    if fdict == 1 then
+        error("FIX:TODO - FDICT not currently implemented")
+    end
+    
+    return windowSize
+end
+
+local function parseHuffmanTables(bitStream)
+    local numLits  = bitStream:Read(5) -- # of literal/length codes - 257
+    
+    local numDists = bitStream:Read(5) -- # of distance codes - 1
+    
+    local numCodes = bitStream:Read(4) -- # of code length codes - 4
+    
+    
+    local codeLens = {}
+    
+    for i = 1, numCodes + 4 do
+        local index = order[i]
+        codeLens[index] = bitStream:Read(3)
+    end
+    
+    codeLens = createHuffmanTable(codeLens, true)
+    
+    local function decode(numCodes)
+        local init = {}
+        local numBits
+        local val = 0
+        
+        while val < numCodes do
+            local codeLen = codeLens:Read(bitStream)
+            local numRepeats
+            
+            if codeLen <= 15 then
+                numRepeats = 1
+                numBits = codeLen
+            elseif codeLen == 16 then
+                numRepeats = 3 + bitStream:Read(2)
+            elseif codeLen == 17 then
+                numRepeats = 3 + bitStream:Read(3)
+                numBits = 0
+            elseif codeLen == 18 then
+                numRepeats = 11 + bitStream:Read(7)
+                numBits = 0
+            end
+            
+            for i = 1, numRepeats do
+                init[val] = numBits
+                val = val + 1
+            end
+        end
+        
+        return createHuffmanTable(init, true)
+    end
+    
+    local numLitCodes = numLits + 257
+    local numDistCodes = numDists + 1
+    
+    local litTable = decode(numLitCodes)
+    local distTable = decode(numDistCodes)
+    
+    return litTable, distTable
+end
+
+local function parseCompressedItem(bitStream, state, litTable, distTable)
+    local val = litTable:Read(bitStream)
+    
+    if val < 256 then -- literal
+        
+        write(state, val)
+    elseif val == 256 then -- end of block
+        
+        return true
+    else
+        local lenBase = lens[val - 257]
+        local numExtraBits = lext[val - 257]
+        
+        local extraBits = bitStream:Read(numExtraBits)
+        local len = lenBase + extraBits
+        
+        local distVal = distTable:Read(bitStream)
+        local distBase = dists[distVal]
+        
+        local distNumExtraBits = dext[distVal]
+        local distExtraBits = bitStream:Read(distNumExtraBits)
+        
+        local dist = distBase + distExtraBits
+        
+        for i = 1, len do
+            local pos = (state.Pos - 1 - dist) % 32768 + 1
+            local byte = assert(state.Window[pos], "invalid distance")
+            write(state, byte)
+        end
+    end
+    
+    return false
+end
+
+local function parseBlock(bitStream, state)
+    local bFinal = bitStream:Read(1)
+    local bType = bitStream:Read(2)
+    
+    if bType == BTYPE_NO_COMPRESSION then
+        local left = bitStream:GetBitsLeft()
+        bitStream:Read(left)
+        
+        local len = bitStream:Read(16)
+        local nlen = bitStream:Read(16)
+        
+        for i = 1, len do
+            local byte = bitStream:Read(8)
+            write(state, byte)
+        end
+    elseif bType == BTYPE_FIXED_HUFFMAN or bType == BTYPE_DYNAMIC_HUFFMAN then
+        local litTable, distTable
+        
+        if bType == BTYPE_DYNAMIC_HUFFMAN then
+            litTable, distTable = parseHuffmanTables(bitStream)
+        else
+            litTable = createHuffmanTable(fixedLit)
+            distTable = createHuffmanTable(fixedDist)
+        end
+        
+        repeat until parseCompressedItem(bitStream, state, litTable, distTable)
+    else
+        error("unrecognized compression type")
+    end
+    
+    return bFinal ~= 0
+end
+
+function Deflate:Inflate(io)
+    local state = createState(io.Output)
+    local bitStream = getBitStream(io.Input)
+    
+    repeat until parseBlock(bitStream, state)
+end
+
+function Deflate:InflateZlib(io)
+    local bitStream = getBitStream(io.Input)
+    local windowSize = parseZlibHeader(bitStream)
+    
+    self:Inflate
+    {
+    Input = bitStream;
+    Output = io.Output;
+    }
+    
+    local bitsLeft = bitStream:GetBitsLeft()
+    bitStream:Read(bitsLeft)
+end
+
+return Deflate
+]]></ProtectedString>
+				</Properties>
+			</Item>
+			<Item class="ModuleScript" referent="RBX4D52CB2E2A8F4A448FBCE2E81B16B7E8">
+				<Properties>
+			<string name="Name"><![CDATA[Chunks]]></string>
+			<ProtectedString name="Source"><![CDATA[local module = {}
+
+module.IDAT = function(file, chunk)
+    local crc = chunk.CRC
+    local hash = file.Hash or 0
+    
+    local data = chunk.Data
+    local buffer = data.Buffer
+    
+    file.Hash = bit32.bxor(hash, crc)
+    file.ZlibStream = file.ZlibStream .. buffer
+end
+
+module.IEND = function(file)
+    file.Reading = nil
+end
+
+module.IHDR = function(file, chunk)
+    local data = chunk.Data
+    
+    file.Width = data:ReadInt32();
+    file.Height = data:ReadInt32();
+    
+    file.BitDepth = data:ReadByte();
+    file.ColorType = data:ReadByte();
+    
+    file.Methods =
+    {
+    Compression = data:ReadByte();
+    Filtering   = data:ReadByte();
+    Interlace   = data:ReadByte();
+    }
+end
+
+module.PLTE = function(file, chunk)
+    if not file.Palette then
+        file.Palette = {}
+    end
+    
+    local data = chunk.Data
+    local palette = data:ReadAllBytes()
+    
+    if #palette % 3 ~= 0 then
+        error("PNG - Invalid PLTE chunk.")
+    end
+    
+    for i = 1, #palette, 3 do
+        local r = palette[i]
+        local g = palette[i + 1]
+        local b = palette[i + 2]
+        
+        local color = Color3.fromRGB(r, g, b)
+        local index = #file.Palette + 1
+        
+        file.Palette[index] = color
+    end
+end
+
+module.bKGD = function(file, chunk)
+    local data = chunk.Data
+    
+    local bitDepth = file.BitDepth
+    local colorType = file.ColorType
+    
+    bitDepth = (2 ^ bitDepth) - 1
+    
+    if colorType == 3 then
+        local index = data:ReadByte()
+        file.BackgroundColor = file.Palette[index]
+    elseif colorType == 0 or colorType == 4 then
+        local gray = data:ReadUInt16() / bitDepth
+        file.BackgroundColor = Color3.fromHSV(0, 0, gray)
+    elseif colorType == 2 or colorType == 6 then
+        local r = data:ReadUInt16() / bitDepth
+        local g = data:ReadUInt16() / bitDepth
+        local b = data:ReadUInt16() / bitDepth
+        file.BackgroundColor = Color3.new(r, g, b)
+    end
+end
+
+module.cHRM = require(script.cHRM)
+module.gAMA = function(file, chunk)
+    local data = chunk.Data
+    local value = data:ReadUInt32()
+    file.Gamma = value / 10e4
+end
+
+module.sRGB = function(file, chunk)
+    local data = chunk.Data
+    file.RenderIntent = data:ReadByte()
+end
+
+module.tEXt = function(file, chunk)
+    local data = chunk.Data
+    local key, value = "", ""
+    
+    for byte in data:IterateBytes() do
+        local char = string.char(byte)
+        
+        if char == '\0' then
+            key = value
+            value = ""
+        else
+            value = value .. char
+        end
+    end
+    
+    file.Metadata[key] = value
+end
+
+module.tIME = function(file, chunk)
+    local data = chunk.Data
+    
+    local timeStamp =
+    {
+    Year  = data:ReadUInt16();
+    Month = data:ReadByte();
+    Day   = data:ReadByte();
+    
+    Hour   = data:ReadByte();
+    Minute = data:ReadByte();
+    Second = data:ReadByte();
+    }
+    
+    file.TimeStamp = timeStamp
+end
+module.tRNS = function(file, chunk)
+    local data = chunk.Data
+    
+    local bitDepth = file.BitDepth
+    local colorType = file.ColorType
+    
+    bitDepth = (2 ^ bitDepth) - 1
+    
+    if colorType == 3 then
+        local palette = file.Palette
+        local alphaMap = {}
+        
+        for i = 1, #palette do
+            local alpha = data:ReadByte()
+            
+            if not alpha then
+                alpha = 255
+            end
+            
+            alphaMap[i] = alpha
+        end
+        
+        file.AlphaData = alphaMap
+    elseif colorType == 0 then
+        local grayAlpha = data:ReadUInt16()
+        file.Alpha = grayAlpha / bitDepth
+    elseif colorType == 2 then
+        -- TODO: This seems incorrect...
+        
+        local r = data:ReadUInt16() / bitDepth
+        local g = data:ReadUInt16() / bitDepth
+        local b = data:ReadUInt16() / bitDepth
+        file.Alpha = Color3.new(r, g, b)
+    else
+        error("PNG - Invalid tRNS chunk")
+    end
+end
+
+return module
+]]></ProtectedString>
+				</Properties>
+			</Item>
+			<Item class="ModuleScript" referent="RBXFE61D52153C141F6A589E24EF6D53D66">
+				<Properties>
+			<string name="Name"><![CDATA[BinaryReader]]></string>
+			<ProtectedString name="Source"><![CDATA[local BinaryReader = {}
+BinaryReader.__index = BinaryReader
+
+function BinaryReader.new(buffer)
+    local reader =
+    {
+    Position = 1;
+    Buffer = buffer;
+    Length = #buffer;
+    }
+    
+    return setmetatable(reader, BinaryReader)
+end
+
+function BinaryReader:ReadByte()
+    local buffer = self.Buffer
+    local pos = self.Position
+    
+    if pos <= self.Length then
+        local result = buffer:sub(pos, pos)
+        self.Position = pos + 1
+        
+        return result:byte()
+    end
+end
+
+function BinaryReader:ReadBytes(count, asArray)
+    local values = {}
+    
+    for i = 1, count do
+        values[i] = self:ReadByte()
+    end
+    
+    if asArray then
+        return values
+    end
+    
+    return unpack(values)
+end
+
+function BinaryReader:ReadAllBytes()
+    return self:ReadBytes(self.Length, true)
+end
+
+function BinaryReader:IterateBytes()
+    return function ()
+        return self:ReadByte()
+    end
+end
+
+function BinaryReader:TwosComplementOf(value, numBits)
+    if value >= (2 ^ (numBits - 1)) then
+        value = value - (2 ^ numBits)
+    end
+    
+    return value
+end
+
+function BinaryReader:ReadUInt16()
+    local upper, lower = self:ReadBytes(2)
+    return (upper * 256) + lower
+end
+
+function BinaryReader:ReadInt16()
+    local unsigned = self:ReadUInt16()
+    return self:TwosComplementOf(unsigned, 16)
+end
+
+function BinaryReader:ReadUInt32()
+    local upper = self:ReadUInt16()
+    local lower = self:ReadUInt16()
+    
+    return (upper * 65536) + lower
+end
+
+function BinaryReader:ReadInt32()
+    local unsigned = self:ReadUInt32()
+    return self:TwosComplementOf(unsigned, 32)
+end
+
+function BinaryReader:ReadString(length)
+    if length == nil then
+        length = self:ReadByte()
+    end
+    
+    local pos = self.Position
+    local nextPos = math.min(self.Length, pos + length)
+    
+    local result = self.Buffer:sub(pos, nextPos - 1)
+    self.Position = nextPos
+    
+    return result
+end
+
+function BinaryReader:ForkReader(length)
+    local chunk = self:ReadString(length)
+    return BinaryReader.new(chunk)
+end
+
+return BinaryReader
+]]></ProtectedString>
+				</Properties>
+			</Item>
+		</Item>
+	</Item>
+</roblox>
