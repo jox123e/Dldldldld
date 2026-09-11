@@ -1,0 +1,754 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+	<External>null</External>
+	<External>nil</External>
+
+	<Item class="Script" referent="RBX138235926000425">
+		<Properties>
+			<string name="Name">FilteringDisabled</string>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<ProtectedString name="Source"><![CDATA[local FilteringEnabled=false
+
+--[[
+
+This will replicate all localscripts ran and show them on the server.
+
+This is very insecure as it will allow exploiters to 100% replicate their exploits to the server.
+
+If you want to disable this, just set FilteringEnabled to true
+
+]]--
+
+local FDClient=script.FDClient:Clone()
+local loadedforplayer={}
+
+function loadplr(plr)
+	for i,v in pairs(loadedforplayer) do
+		if v==plr.Name then
+			return;
+		end
+	end
+	if FilteringEnabled==false then
+		local temp=FDClient:Clone()
+		temp.Disabled=false
+		repeat wait(2) until plr:FindFirstChild("PlayerGui")
+		temp.Parent=plr.PlayerGui
+		print("Loaded for "..plr.Name)
+		table.insert(loadedforplayer,plr.Name)
+		end
+end
+
+game:GetService("Players").PlayerRemoving:Connect(function(plr)
+	for i,v in pairs(loadedforplayer)  do
+		if v==plr.Name then
+			table.remove(loadedforplayer,i)
+		end
+	end
+end)
+
+game:GetService("Players").PlayerAdded:Connect(function(plr)
+	loadplr(plr)
+end)
+
+if FilteringEnabled==false then
+	local FDServer=script.FDServer:Clone()
+	FDServer.Parent=game:GetService("ServerScriptService")
+	FDServer.Disabled=false
+	wait()
+	script:Destroy()
+	
+	game:GetService("Players").PlayerAdded:Connect(function(plr)
+		loadplr(plr)
+	end)
+	
+	wait(2)
+	for i,plr in pairs(game:GetService("Players"):GetPlayers()) do
+		loadplr(plr)
+	end
+	_G.FDEnabled=false  --   This is so other scripts can tell if FE is disabled or not   --
+end]]></ProtectedString>
+		</Properties>
+
+	<Item class="Script" referent="RBX024829472927482838">
+		<Properties>
+			<string name="Name">FDServer</string>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<ProtectedString name="Source"><![CDATA[wait()
+script:Destroy()
+local RS=game:GetService("ReplicatedStorage")
+local notparented={}
+createdonserver={}
+local playerindex={}
+local instanceindex={}
+local cooldown=2
+local blacklist={}
+local moved={}
+local chats={}
+local chatblacklist={}
+local newparentt={}
+local alredyy={}
+local foldermain=Instance.new("Folder",RS) foldermain.Name="FD"
+local fdpart=Instance.new("Part",foldermain) fdpart.Anchored=true fdpart.Name="FDPart"
+local Storage=Instance.new("Folder",foldermain) Storage.Name="Storage"
+local remote=Instance.new("RemoteFunction",foldermain) remote.Name="FD"
+local remote2=Instance.new("RemoteEvent",foldermain) remote2.Name="FD2"
+local replicatebackparts={}
+ez=nil
+remote.OnServerInvoke = function(client,Arg,InstanceClass,FullName,Parent,Instancee)
+	ez=nil
+	if InstanceClass~="TouchTransmitter" then
+	if Arg=="EasyCreation" and Instancee==nil and FullName~=nil then
+			local a=Instance.new(InstanceClass,fdpart) a.Name=Parent
+			if a:IsA("BasePart") then
+				a.Position=Vector3.new(3000,5000,3000)
+				a.Anchored=true
+			end
+			local t={client,a}
+		table.insert(playerindex,t)
+		table.insert(instanceindex,a)
+		table.insert(newparentt,{a,FullName})
+		
+		return a;
+	elseif Instancee~=nil then
+		return "Fail";
+		end
+	else
+		return "Fail";
+	end
+end
+
+local fixparts={}
+local checked={}
+local checked2={}
+local temp={}
+
+local function find(tbl,obj)
+	for i,v in pairs(tbl) do
+		if v==obj then
+			return i;
+		end
+	end
+	
+	return false;
+end
+
+local function checklol(Obj)
+	local lol = false
+	if find(checked2,Obj) then
+		return false;
+	end
+	for i,v in pairs(temp) do
+		if v:IsDescendantOf(workspace) then
+		if v:IsA("Weld") or v:IsA("Motor6D") then
+			if v.Part1==Obj or v.Part0==Obj then
+				lol = true
+			end
+			end
+		end
+	end
+	for i,v in pairs(Obj:GetDescendants()) do
+		if v:IsA("Weld") or v:IsA("Motor6D") then
+			if v.Part1==Obj or v.Part0==Obj then
+				lol = true
+			end
+		end
+	end
+	for i,v in pairs(Obj:GetDescendants()) do
+		if lol==true then
+			if not find(fixparts,v) and not find(checked2,v) then
+				table.insert(fixparts,v)
+			    table.insert(checked2,v)
+			end
+		end
+	end
+	if Obj:IsA("Weld") or Obj:IsA("Motor6D") then
+		if not find(fixparts,Obj) then
+			table.insert(fixparts,Obj)
+			table.insert(checked2,Obj)
+		end
+		lol=true
+	end
+	if Obj:FindFirstAncestorWhichIsA("Model") then
+		local a = Obj:FindFirstAncestorWhichIsA("Model")
+		if a.ClassName=="Model" then
+			for i,v in pairs(a:GetDescendants()) do
+				if v:IsA("Weld") or v:IsA("Motor6D") then
+					if v.Part1==Obj or v.Part0==Obj then
+						lol=true
+					end
+				end
+			end
+			for i,v in pairs(a:GetDescendants()) do
+				if lol==true then
+					if not find(fixparts,v) and not find(checked2,v) then
+						table.insert(fixparts,v)
+						table.insert(checked2,v)
+					end
+				end
+			end
+		end
+	end
+	if lol==false then
+		return false
+	else
+		return true
+	end
+end
+
+remote2.OnServerEvent:Connect(function(client,Arg,InstanceClass,FullName,Variable)
+	local rs,err = pcall(function()
+		if Arg=="Property" then
+			for i,v in pairs(InstanceClass) do
+				local rs,err = pcall(function()
+					local skip=false
+					local Var=v[2]
+					local Obj=v[1]
+					local setto=v[3]
+					if not find(checked,Obj) then
+						table.insert(checked,Obj)
+						checklol(Obj)
+					end
+					if find(fixparts,Obj) then
+						if Var=="Origin Position" or Var=="Origin Orientation" or Var=="World Pivot Position" or Var=="Origin World Pivot Orientation" or Var=="RotVelocity" or Var=="Velocity" or Var=="CFrame" or Var=="Position" or Var=="MaxVelocity" or Var=="CurrentAngle" or Var=="Axis" or Var=="SecondaryAxis" or Var=="WorldSecondaryAxis" or Var=="WorldCFrame" or Var=="C0" or Var=="C1" then --or Var=="Orientation" or Var=="Rotation"
+							if string.match(Obj.ClassName,"Part") or Obj:IsA("Model") or Obj:IsA("Weld") or Obj:IsA("Attachment") or Obj:IsA("Motor6D") then
+								local rs,err = pcall(function()
+									if Obj:IsDescendantOf(workspace) or game:GetService("Players"):FindFirstChild(Obj.Name) and Obj:IsA("Model") and Obj.Parent==workspace then--client.Name~=v.Name and
+										if not find(moved,Obj) then
+											skip=false
+											table.insert(moved,Obj)
+										elseif find(moved,Obj) then
+											skip=true
+										end
+									end
+								end)
+							end
+						end
+					else
+						skip=false
+					end
+					if Var=="TimePosition" then
+						skip=true
+					end
+					local authorized=true
+					for i,v in pairs(playerindex) do
+						if v[2]==Obj then
+							if client~=v[1] and Var~="Text" and Var~="Health" and Var~="DisplayName" and Var~="Name" and Var~="BrickColor" then
+								skip=true
+							end
+						end
+					end
+					if Var=="C0" or Var=="C1" or Var=="CFrame" or string.match(Var,"Origin") then
+						if find(alredyy,Obj) then
+							skip=true
+							else
+							table.insert(alredyy,Obj)
+						end
+					end
+					if find(instanceindex,Obj) and Var=="Parent" and setto==Storage then
+						skip=true
+					end
+					if skip==false then
+						Obj[Var]=setto
+					end
+				end)
+			end
+		end
+	end)
+end)
+
+local testt=0
+while wait(0.1) do
+	testt=testt+0.1
+	for i,v in pairs(newparentt) do
+		v[1].Parent=v[2]
+		table.remove(newparentt,i)
+	end
+	if testt>=cooldown then
+		alredyy={}
+		testt=0
+		for i,v in pairs(blacklist) do
+			local rs,err = pcall(function()
+				if not v:IsDescendantOf(game) then
+					table.remove(blacklist,i)
+				end
+			end)
+		end
+		moved={}
+		remote2:FireAllClients(blacklist)
+		chatblacklist={}
+	end
+end]]></ProtectedString>
+		</Properties>
+       </Item>
+		<Item class="LocalScript" referent="RBX02839163535348281">
+			<Properties>
+				<string name="Name">FDClient</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<ProtectedString name="Source"><![CDATA[--fixed by claire_98990–
+
+wait()
+script:Destroy()
+
+print("Client successfully loaded.")
+
+--variables--
+
+local RS=game:GetService("ReplicatedStorage")
+local remote=RS:WaitForChild("FD"):WaitForChild("FD")
+local remote2=RS:WaitForChild("FD"):WaitForChild("FD2")
+local plr=game:GetService("Players").LocalPlayer
+local gui =plr.PlayerGui
+local pack =plr.Backpack
+local char =plr.Character
+local Storage=RS:WaitForChild("FD").Storage
+local cooldown=0.1
+local variables = {"RiseVelocity","Opacity","VelocityInheritance","WindAffectsDrag","TimeScale","LockedToPart","Acceleration","ShapeStyle","ShapeInOut","SpreadAngle","Speed","RotSpeed","Rate","Lifetime","EmissionDirection","ZOffset","Squash","Volume","Brightness","PantsTemplate","ShirtTemplate","BackSurface","BottomSurface","LeftSurface","RightSurface","TopSurface","FrontSurface","MoonTextureId","TextureId","SkyboxBk","SkyboxDn","SkyboxFt","SkyboxLf","SkyboxRt","SkyboxUp","StarCount","SunAngularSize","SunTextureId","MeshType","VertexColor","CastShadow","PivotOffset","WorldPivot","Size","Position","CFrame","SoundId","Name","BrickColor","Color","Transparency","Orientation","Anchored","Rotation","Health","DisplayName","C0","C1","Part0","Part1","MeshId","Texture","Face","ZIndex","DisplayDistanceType","RigType","WalkSpeed","MaxHealth","HipHeight","Disabled","Enabled","JumpPower","Text","BackgroundColor","TextColor3","BorderColor3","Scale","Offset","Active","PrimaryPart","Reflectance","Massless","CanCollide","Material","Shape","CollisionGroup","CanTouch","BinType","ExtentsOffset","MaxDistance","ResetOnSpawn","SizeOffset","StudsOffset","AnchorPoint","AutomaticSize","BackgroundTransparency","LayoutOrder","BorderMode","BorderSizePixel","Active","SizeConstraint","Visible","Image","ImageColor3","ImageRectSize","ImageRectOffset","ImageTransparency","ResampleMode","ScaleType","AlwaysOnTop","Brightness","PlayerToHideFrom","Playing","Value"} -- Variables it loops through (The more there are the laggier the client will be.)
+local Data = variables
+local savedu=false
+
+--variables--
+
+local function find(tbl,obj)
+	for i,v in pairs(tbl) do
+		if v==obj then
+			return i;
+		end
+	end
+
+	return false;
+end
+
+--tables--
+
+local Type={}
+Immune = {}
+Immune2 = {}
+
+local antimoveparent={}
+local index={}
+local serverindex={}
+local queue={}
+local failed={}
+local ignore={}
+local isserverinstance={}
+local people={}
+local anti={}
+local characters={}
+local updateserver={}
+local aaa={}
+local blacklist={}
+local belongsinstorage={}
+
+--tables--
+
+remote.OnClientInvoke = function(Obj,Var,setto)
+	for i,v in pairs(serverindex) do
+		if v[2]==Obj then
+			v[1][Var]=setto
+		end
+	end
+	return;
+end
+
+--functions--
+
+function updateproperties(Object,reeee)
+	if Object:IsDescendantOf(game) then
+	local t={}
+		local rs,err = pcall(function()
+			for i,a in pairs(Data) do
+				local rs,err = pcall(function()
+			if not find(isserverinstance,Object) then
+					if a~="Parent" then
+					local rs,err = pcall(function()
+						if Object[a]~=reeee[a] then
+							local t={}
+							if find(index,Object[a]) then
+								local num =find(index,Object[a])
+								local instance=serverindex[num][2]
+								t={reeee,a,instance,Object}
+							else
+								t={reeee,a,Object[a],Object}
+							end
+									for i,v in pairs(queue) do
+										if v[2]==a and v[1]==reeee then
+											table.remove(queue,i)
+										end
+									end
+							table.insert(queue,t)
+						end
+					end)
+				end
+			end
+				end)
+			end
+		end)
+	end
+end
+
+function partchanged(Object,reeee,property)
+	pcall(function()
+		if reeee[property]~=Object[property] and find(Data,property) then
+			for i,v in pairs(queue) do
+				if v[2]==property and v[1]==reeee then
+					table.remove(queue,i)
+				end
+			end
+
+			local t={}
+			if find(index,Object[property]) then
+				local num =find(index,Object[property])
+				local instance=serverindex[num][2]
+				t={reeee,property,instance,Object}
+			else
+				t={reeee,property,Object[property],Object}
+			end
+			table.insert(queue,t)
+		end
+	end)
+end
+
+function serverinstance(Object)
+	if not find(isserverinstance,Object) and find(ignore,Object) and not Object:IsDescendantOf(Storage) or find(characters,Object) then
+		if not Object:IsDescendantOf(game) or Object:IsA("Sound") then
+			return;
+		end
+		local lastvalue=nil
+		local lastproperty=nil
+		 Object.Changed:Connect(function(a)
+			local rs,err = pcall(function()
+				local skip=false
+				if a==lastproperty or Object[a]==lastvalue then
+					for i,v in pairs(queue) do
+						if v[1]==Object and v[2]==a then
+							table.remove(queue,i)
+						end
+					end
+
+				elseif Object[a]==Storage or a=="TimePosition" or Object:IsA("Sound") or find(index,Object) then
+					skip=true
+				end
+				if find(blacklist,Object) and not find(index,Object) and not Object:IsDescendantOf(plr.Character) and not Object:IsA("Humanoid") or a=="WalkToPoint" then --and not find(index,Object) --or find(characters,Object)
+					skip=true
+				end
+				if a=="Position" or a=="Origin Position" or a=="Origin Orientation" or a=="Orientation" or string.match(a,"Rotation") then
+					if lastvalue["X"] and lastvalue["Y"] and lastvalue["Z"] or typeof(lastvalue)=="Vector3" then
+						if Object[a]["X"]+10>lastvalue["X"] or Object[a]["X"]-10<lastvalue["X"] or Object[a]["Y"]+10>lastvalue["Y"] or Object[a]["Y"]-10<lastvalue["Y"] or Object[a]["Z"]+10>lastvalue["Z"] or Object[a]["Z"]-10<lastvalue["Z"] then
+							skip=true
+						end
+					end
+				end
+				if not Object:IsDescendantOf(game) and a~="Parent" then
+					return;
+				end
+				if skip~=true then
+					local t={Object,a,Object[a],Object}
+					table.insert(queue,t)
+					lastproperty=a
+					lastvalue=Object[a]
+				end
+			end)
+		end)
+	end
+end
+
+function replicate(Object)
+	local rs,err = pcall(function()
+		local skip=false
+		local objpar=Object.Parent
+		local parent=objpar
+		if find(index,objpar) then
+			local indexx=find(index,objpar)
+			if serverindex[indexx][2]~=nil and serverindex[indexx][2]:IsDescendantOf(game) then
+				parent=serverindex[indexx][2]
+			end
+		end
+		local reeee = remote:InvokeServer("EasyCreation",Object.ClassName,parent,Object.Name,Object)
+		if typeof(reeee)~="Instance" then
+			if not find(people,Object) then
+				table.insert(ignore,Object)
+				serverinstance(Object)
+			end
+		else
+			if typeof(reeee)=="Instance" then
+				local t={Object,reeee}
+				table.insert(serverindex,t)
+				table.insert(index,Object)
+				local function verifyintegrity(Object,reeee)
+					local find=find(index,Object)
+					if serverindex[find][1]~=Object then
+						for i,v in pairs(serverindex) do
+							if v[1]==Object then
+								table.remove(serverindex,i)
+							end
+						end
+						table.remove(index,find)
+						table.insert(index,Object)
+						local t={Object,reeee}
+						table.insert(serverindex,t)
+						verifyintegrity(Object,reeee)
+					end
+				end
+				Object.Changed:connect(function(property)
+					partchanged(Object,reeee,property)
+				end)
+				reeee.Changed:Connect(function(property)
+					pcall(function()
+						if reeee[property]~=Object[property] and find(Data,property) then
+							property=Object[property]
+							for i,v in pairs(queue) do
+								if v[2]==property and v[1]==reeee then
+									table.remove(queue,i)
+								end
+							end
+							local t={}
+							if find(index,Object[property]) then
+								local num =find(index,Object[property])
+								local instance=serverindex[num][2]
+								t={reeee,property,instance,Object}
+							else
+								t={reeee,property,Object[property],Object}
+							end
+							table.insert(queue,t)
+						end
+					end)
+				end)
+				local rs,err = pcall(function()
+					if  not reeee:IsDescendantOf(game:GetService("Lighting")) and not reeee:IsA("Decal") then
+						table.insert(belongsinstorage,reeee)
+					end
+				end)
+				verifyintegrity(Object,reeee)
+				updateproperties(Object,reeee)
+			end
+		end
+	end)
+end
+
+
+--functions--
+
+
+for i,a in pairs(game:GetDescendants()) do
+	local rs,err = pcall(function()
+		table.insert(ignore,a)
+		serverinstance(a)
+	end)
+end
+
+game.DescendantAdded:Connect(function(Object)
+	pcall(function()
+	if Object.Parent==workspace and game:GetService("Players"):FindFirstChild(Object.Name) and Object:IsA("Model") then
+		table.insert(people,Object)
+	end
+	if not find(failed,Object) and find(index,Object.Parent) and not Object:IsDescendantOf(game:GetService("Players")) or find(ignore,Object.Parent) and not Object:IsDescendantOf(plr.PlayerGui) then
+		replicate(Object)
+	elseif not find(index,Object.Parent) and not find(ignore,Object.Parent) and not Object:IsDescendantOf(game:GetService("Players")) then
+		table.insert(failed,Object)
+		end
+	end)
+end)
+
+game:GetService("RunService").Heartbeat:Connect(function()
+	for i,v in pairs(failed) do
+		if find(index,v.Parent) then
+			table.remove(failed,i)
+			replicate(v)
+		end
+	end
+	for i,v in pairs(ignore) do
+		local rs,err = pcall(function()
+		if not v:IsDescendantOf(game) and v.Name~="BASE" then
+			local t ={v,"Parent",nil}
+			table.insert(aaa,t)
+			table.remove(ignore,i)
+			end
+		end)
+		if err then
+			table.remove(ignore,i)
+		end
+	end
+end)
+
+game:GetService("Players").PlayerAdded:Connect(function(plr)
+	plr.CharacterAdded:Connect(function(a)
+		savedu=true
+		wait(1)
+table.insert(characters,a)
+		table.insert(ignore,a)
+		serverinstance(a)
+		for i,l in pairs(a:GetDescendants()) do
+			local rs,err = pcall(function()
+				table.insert(characters,l)
+				table.insert(ignore,l)
+				serverinstance(l)
+			end)
+		end
+	end)
+	savedu=false
+end)
+
+for i,plr in pairs(game:GetService("Players"):GetPlayers()) do
+	plr.CharacterAdded:Connect(function(a)
+		savedu=true
+		wait(1)
+		table.insert(characters,a)
+		table.insert(ignore,a)
+		serverinstance(a)
+		for i,l in pairs(a:GetDescendants()) do
+			local rs,err = pcall(function()
+				table.insert(characters,l)
+				table.insert(ignore,l)
+				serverinstance(l)
+			end)
+		end
+	end)
+	savedu=false
+end
+
+remote2.OnClientEvent:Connect(function(Obj)
+	for i,v in pairs(characters) do
+		local rs,err = pcall(function()
+		if not v:IsDescendantOf(game) then
+			table.remove(characters,i)
+			end
+		end)
+	end
+	for i,v in pairs(ignore) do
+		local rs,err = pcall(function()
+		if not v:IsDescendantOf(game) then
+			table.remove(ignore,i)
+			end
+		end)
+	end
+	for i,v in pairs(people) do
+		local rs,err = pcall(function()
+		if not v:IsDescendantOf(game) then
+			table.remove(people,i)
+			end
+		end)
+	end
+	for i,v in pairs(anti) do
+		local rs,err = pcall(function()
+		if not v:IsDescendantOf(game) then
+			table.remove(anti,i)
+			end
+		end)
+	end
+	for i,v in pairs(isserverinstance) do
+		local rs,err = pcall(function()
+		if not v:IsDescendantOf(game) then
+			table.remove(isserverinstance,i)
+			end
+		end)
+	end
+	for i,v in pairs(failed) do
+		local rs,err = pcall(function()
+		if not v:IsDescendantOf(game) then
+			table.remove(failed,i)
+			end
+		end)
+	end
+	for i,v in pairs(antimoveparent) do
+		local rs,err = pcall(function()
+		if not v:IsDescendantOf(game) then
+			table.remove(antimoveparent,i)
+			end
+		end)
+	end
+	for i,v in pairs(Obj) do
+		local rs,err = pcall(function()
+		if not find(blacklist,v) then
+			table.insert(blacklist,v)
+			end
+		end)
+	end
+end)
+
+local counter=0
+
+local ensurance={}
+
+local posinindex=0
+function checktherest()
+	for i,v in pairs(serverindex) do
+		local rs,err = pcall(function()
+			if v[1]~=nil and v[2]~=nil and typeof(v[1])=="Instance" and typeof(v[2])=="Instance" then
+				if not v[1]:IsDescendantOf(game) and v[2]:IsDescendantOf(game) then
+					local t ={v[2],"Parent",nil}
+					table.insert(aaa,t)
+					table.remove(serverindex,i)
+					table.remove(index,i)
+					v[2]:Destroy()
+				elseif not v[2]:IsDescendantOf(game) then
+					if v[1]:IsDescendantOf(game) then
+						v[1]:Destroy()
+					end
+					table.remove(serverindex,i)
+					table.remove(index,i)
+				end
+			end
+		end)
+	end
+	if counter>0.2 then
+for i,v in pairs(serverindex) do
+		local rs,err = pcall(function()
+		if v[1]:IsDescendantOf(game) and not find(ensurance,v[1]) then
+			updateproperties(v[1],v[2])
+			table.insert(ensurance,v[1])
+		end
+		end)
+		end
+		local localcounter=0
+	repeat 
+			localcounter=localcounter+1
+			posinindex=posinindex+1
+		local v = serverindex[posinindex]
+			local rs,err = pcall(function()
+				if v[1]:IsDescendantOf(game) then
+					updateproperties(v[1],v[2])
+				end
+			end)
+	until
+	localcounter>=20 or posinindex>=#serverindex
+		if posinindex>=#serverindex then
+			posinindex=0
+		end
+	counter=0
+	end
+end
+
+local function loop()
+	counter=counter+cooldown
+	checktherest()
+	for i,ll in pairs(belongsinstorage) do
+		if not ll:IsDescendantOf(game) then
+			table.remove(belongsinstorage,i)
+		elseif not ll:IsDescendantOf(Storage) then
+			pcall(function()
+				ll.Parent = Storage
+			end)
+		end
+	end
+	for i,v in pairs(queue) do
+		if typeof(v[3])~="Instance" then
+		v[3]=v[4][v[2]]
+		end
+	end
+	if aaa[1]~=nil then
+		remote2:FireServer("Property",aaa)
+		aaa={}
+	end
+	if queue[1]~=nil then
+		remote2:FireServer("Property",queue)
+		queue={}
+	end
+	wait(cooldown)
+	loop()
+end
+
+loop()]]></ProtectedString>
+			</Properties>
+		</Item>
+
+	</Item>
+</roblox>
