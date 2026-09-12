@@ -1,0 +1,178 @@
+local data = {}
+
+local system_domains = {
+  ["https://get-key.keysystem352.workers.dev/"] = "https://lnbz.la/KUvc4vDL",
+  ["https://get-key.keysystem2352.workers.dev/"] = "https://lnbz.la/A2cPtbL2",
+  ["https://get-key.keysystem3352.workers.dev/"] = "https://lnbz.la/RWfp"
+}
+
+
+for domain, link in pairs(system_domains) do
+  local request = request or (syn and syn.request) or http_request or (http and http.request)
+  local success, response = pcall(function()
+    return request({ Url = domain.."status", Method = "GET" })
+  end)
+  if success and response.StatusCode == 200 and tostring(response.Body) == "true" then
+     data["key_link"] = link
+     data["domain"] = domain
+     break
+  else
+     data["key_link"] = nil
+  end
+end
+
+
+data["key_link"] = "https://get-key.pages.dev/"
+
+
+---Show Key GUI Function
+local function ShowKeyGui()
+ local CollectionService = game:GetService("CollectionService")
+ local ScreenGui = Instance.new("ScreenGui")
+ ScreenGui.Name = "Key System"
+ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ ScreenGui.Parent = game:GetService("CoreGui")
+ CollectionService:AddTag(ScreenGui, "main")
+ 
+ local MainFrame = Instance.new("Frame")
+ MainFrame.Name = "MainFrame"
+ MainFrame.Size = UDim2.new(0, 340, 0, 175)
+ MainFrame.Position = UDim2.new(0.5, -170, 0.5, -100) 
+ MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+ MainFrame.BorderSizePixel = 0
+ MainFrame.Active = true
+ MainFrame.Draggable = true
+ MainFrame.Parent = ScreenGui
+
+ local UICorner_Main = Instance.new("UICorner")
+ UICorner_Main.CornerRadius = UDim.new(0, 8)
+ UICorner_Main.Parent = MainFrame
+
+ local UIStroke_Main = Instance.new("UIStroke")
+ UIStroke_Main.Color = Color3.fromRGB(50, 50, 50)
+ UIStroke_Main.Thickness = 1.5
+ UIStroke_Main.Parent = MainFrame
+
+ local TitleText = Instance.new("TextLabel")
+ TitleText.Name = "TitleText"
+ TitleText.Size = UDim2.new(1, 0, 0, 40)
+ TitleText.BackgroundTransparency = 1
+ TitleText.Position = UDim2.new(0, 0, 0, 2.5)
+ TitleText.Font = Enum.Font.GothamBold
+ TitleText.Text = "KEY SYSTEM"
+ TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
+ TitleText.TextSize = 20
+ TitleText.Parent = MainFrame
+
+ local InputBox = Instance.new("TextBox")
+ InputBox.Name = "InputBox"
+ InputBox.Size = UDim2.new(0, 280, 0, 36)
+ InputBox.Position = UDim2.new(0.5, -140, 0, 45)
+ InputBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ InputBox.BorderSizePixel = 0
+ InputBox.Font = Enum.Font.Gotham
+ InputBox.PlaceholderText = "Enter your key here..."
+ InputBox.Text = ""
+ InputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+ InputBox.TextSize = 14
+ InputBox.ClearTextOnFocus = true
+ InputBox.Parent = MainFrame
+
+ local UICorner_Input = Instance.new("UICorner")
+ UICorner_Input.CornerRadius = UDim.new(0, 6)
+ UICorner_Input.Parent = InputBox
+
+ local SubmitBtn = Instance.new("TextButton")
+ SubmitBtn.Name = "SubmitBtn"
+ SubmitBtn.Size = UDim2.new(0, 135, 0, 34)
+ SubmitBtn.Position = UDim2.new(0, 30, 0, 95)
+ SubmitBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215) 
+ SubmitBtn.Font = Enum.Font.GothamBold
+ SubmitBtn.Text = "SUBMIT"
+ SubmitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ SubmitBtn.TextSize = 14
+ SubmitBtn.Parent = MainFrame
+
+ local UICorner_Submit = Instance.new("UICorner")
+ UICorner_Submit.CornerRadius = UDim.new(0, 6)
+ UICorner_Submit.Parent = SubmitBtn
+
+ local GetKeyBtn = Instance.new("TextButton")
+ GetKeyBtn.Name = "GetKeyBtn"
+ GetKeyBtn.Size = UDim2.new(0, 135, 0, 34)
+ GetKeyBtn.Position = UDim2.new(0, 175, 0, 95)
+ GetKeyBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ GetKeyBtn.Font = Enum.Font.GothamBold
+ GetKeyBtn.Text = "GET KEY"
+ GetKeyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ GetKeyBtn.TextSize = 14
+ GetKeyBtn.Parent = MainFrame
+
+ local UICorner_GetKey = Instance.new("UICorner")
+ UICorner_GetKey.CornerRadius = UDim.new(0, 6)
+ UICorner_GetKey.Parent = GetKeyBtn
+
+ local FooterText = Instance.new("TextBox")
+ FooterText.Name = "FooterText"
+ FooterText.Size = UDim2.new(1, -20, 0, 30)
+ FooterText.Position = UDim2.new(0, 10, 0, 135)
+ FooterText.BackgroundTransparency = 1
+ FooterText.Font = Enum.Font.Gotham
+ FooterText.Text = "Wants a key free?\nhttps://www.roblox.com/game-pass/1529641694/Access-Card"
+ FooterText.TextColor3 = Color3.fromRGB(150, 150, 150)
+ FooterText.TextSize = 11
+ FooterText.MultiLine = true
+ FooterText.ClearTextOnFocus = false
+ FooterText.Parent = MainFrame
+
+ local keypasstext = FooterText.Text
+ FooterText:GetPropertyChangedSignal("Text"):Connect(function()
+ FooterText.Text = keypasstext
+ end)
+
+ SubmitBtn.MouseButton1Click:Connect(function()
+ local request = request or (syn and syn.request) or http_request or (http and http.request)
+ if request({ Url = data["domain"].."check/"..InputBox.Text, Method = "GET" }).Body == "200: Success" and request({ Url = data["domain"].."check/"..InputBox.Text, Method = "GET" }).StatusCode == 200 then
+    if writefile then
+       writefile("Ghosthub/.key", InputBox.Text)
+    end
+    data["key_valid"] = true
+    ScreenGui:Destroy()
+ else
+    local text = InputBox.Text
+    InputBox.Text = "Invalid Key"
+    InputBox.TextColor3 = Color3.fromRGB(255, 80, 80)
+    wait(1)
+    InputBox.Text = text
+    InputBox.TextColor3 = Color3.fromRGB(255, 255, 255);
+ end
+ end)
+ GetKeyBtn.MouseButton1Click:Connect(function()
+ GetKeyBtn.Text = "Link Copied!"
+ GetKeyBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
+ if setclipboard then
+    setclipboard(data["key_link"])
+ end
+ InputBox.Text = data["key_link"]
+ InputBox.ClearTextOnFocus = false
+ task.wait(1.5)
+ GetKeyBtn.Text = "GET KEY"
+ GetKeyBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+ end)
+ return ScreenGui
+end
+---
+
+local request = request or (syn and syn.request) or http_request or (http and http.request)
+if isfile and readfile and isfile("Ghosthub/.key") and request({ Url = data["domain"].."check/"..readfile("Ghosthub/.key"), Method = "GET" }).Body == "200: Success" and request({ Url = data["domain"].."check/"..readfile("Ghosthub/.key"), Method = "GET" }).StatusCode == 200 or game:GetService("HttpService"):JSONDecode(game:HttpGet("https://inventory.roblox.com/v1/users/"..game.Players.LocalPlayer.UserId.."/items/GamePass/1529641694")).data[1] ~= nil then
+   data["key_valid"] = true
+else
+   data["key_valid"] = true
+end
+
+
+while not data["key_valid"] do
+  task.wait()
+end
+
+  
