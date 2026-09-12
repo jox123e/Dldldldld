@@ -226,7 +226,7 @@ end
 						<ProtectedString name="Source"><![CDATA[
 local button: Instance = script.Parent.ExecuteButton
 local text: Instance = script.Parent.TextBox
-local module: Instance = require("./Main_Module")
+local module: Instance = require(script.Parent.Main_Module)
 
 button.MouseButton1Click:Connect(function()
     if text.Text ~= "" then
