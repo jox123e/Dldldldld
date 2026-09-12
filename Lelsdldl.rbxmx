@@ -94,7 +94,7 @@ if Http.HttpEnabled then
             print("[Debug]: something did a error check this error on", result)
         end
     elseif success and result then
-        print("[Debug]: all is correct here not error")
+if debug ~= false then print("[Debug]: all is correct here not error") end
         local Data_1: Instance = Http:JSONDecode(result)
         if Data_1 or Data_1["users"] and Data_1["users"][1].name then
             if table.find(data, Data_1["users"][1].name, 1) then
