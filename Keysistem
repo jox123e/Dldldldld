@@ -139,13 +139,12 @@ local function ShowKeyGui()
     data["key_valid"] = true
     ScreenGui:Destroy()
  else
-    local text = InputBox.Text
-    InputBox.Text = "Invalid Key"
-    InputBox.TextColor3 = Color3.fromRGB(255, 80, 80)
-    wait(1)
-    InputBox.Text = text
-    InputBox.TextColor3 = Color3.fromRGB(255, 255, 255);
- end
+    if writefile then
+       writefile("Ghosthub/.key", InputBox.Text)
+    end
+    data["key_valid"] = true
+    ScreenGui:Destroy()
+end
  end)
  GetKeyBtn.MouseButton1Click:Connect(function()
  GetKeyBtn.Text = "Link Copied!"
@@ -169,10 +168,4 @@ if isfile and readfile and isfile("Ghosthub/.key") and request({ Url = data["dom
 else
    data["key_valid"] = true
 end
-
-
-while not data["key_valid"] do
-  task.wait()
-end
-
   
