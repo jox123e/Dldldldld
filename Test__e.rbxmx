@@ -32,11 +32,11 @@ end]]></ProtectedString>
 					<string name="Name">Storage</string>
 				</Properties>
 			</Item>
-			<Item class="RemoteFunction" referent="RBX2">
-				<Properties>
-					<string name="Name">FD</string>
-				</Properties>
-			</Item>
+<Item class="RemoteFunction" referent="RBX2">
+    <Properties>
+        <string name="Name">FD</string>
+    </Properties>
+</Item>
 			<Item class="RemoteEvent" referent="RBX3">
 				<Properties>
 					<string name="Name">FD2</string>
